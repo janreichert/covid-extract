@@ -4,7 +4,7 @@ WORKDIR="/Users/jeichert/tmp"
 ECDC="https://opendata.ecdc.europa.eu/covid19/nationalcasedeath_eueea_daily_ei/csv/data.csv"
 NYTIMES="https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv"
 WHO="https://covid19.who.int/WHO-COVID-19-global-table-data.csv"
-
+POPULATION="https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/UID_ISO_FIPS_LookUp_Table.csv"
 
 SKIP="N"
 LOOP="N"
