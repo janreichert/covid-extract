@@ -8,6 +8,7 @@ WHO="https://covid19.who.int/WHO-COVID-19-global-table-data.csv"
 
 SKIP="N"
 LOOP="N"
+PREVIOUS="N"
 
 usage() {
     echo $(basename "$0") [-s] [-l n]
@@ -41,7 +42,6 @@ while (($#)); do
     shift
 done
 
-PREVIOUS="N"
 if [ -f $WORKDIR/out.csv.previous ]; then
     PREVIOUS="Y"
 fi
