@@ -14,7 +14,7 @@ UPDATED="N"
 usage() {
     echo $(basename "$0") [-s] [-l n]
     echo "-s skip dataset fetch (for testing purposes)"
-    echo "-l loop (experimental, sleep for n seconds, default 7200=2hours)"
+    echo "-l loop (experimental, sleep for n minutes, default 120=2hours)"
     echo
     echo "current datasets:"
     echo "   NYTIMES: $NYTIMES"
@@ -31,11 +31,12 @@ while (($#)); do
         -l)
             LOOP="Y"
             if [[ $2 = "" ]]; then
-                SLEEP=7200
+                SLEEP=120
             else
-                SLEEP=$2
+                (( SLEEP = $2 * 60 ))
+                shift
             fi
-            shift
+            
         ;;
         *)
             usage;;
@@ -43,22 +44,45 @@ while (($#)); do
     shift
 done
 
+
+datasets() {
+    if [[ $SKIP = "N" ]]; then
+        # Processing NYTimes
+        printf "Fetching NYTIMES Dataset\n"
+        curl -s $NYTIMES > $WORKDIR/nytimes.csv 
+    
+        # Processing ECDC
+        printf "Fetching ECDC Dataset\n"
+        curl -s $ECDC > $WORKDIR/ecdc.csv
+
+        # Processing WHO
+        printf "Fetching WHO Dataset\n"
+        curl -s $WHO > $WORKDIR/who.csv
+
+        # Processing POPULATION
+        # Hardly parseable as some fields contain , 
+        # I need to rewrite this in python or go
+        # printf "Fetching Population Count Dataset\n"
+        # curl -s $POPULATION > $WORKDIR/population.csv
+    fi
+}
+
 if [ -f $WORKDIR/out.csv.previous ]; then
     PREVIOUS="Y"
 fi
 
 while true; do
     clear
-    printf "Update `date` \n\n"
+    printf "\033[1;31mUpdate `date` \033[0m\n"
+    if [ $LOOP = "Y" ]; then
+        echo "Loop with a $SLEEP sleep"
+    fi
     echo "Country;24h;7days" > $WORKDIR/out.csv
 
-    # Processing NYTimes
-    if [[ $SKIP = "N" ]]; then
-        printf "\nFetching NYTIMES Dataset\n"
-        curl -s $NYTIMES > $WORKDIR/nytimes.csv 
-    fi
+    datasets
+
     for STATE in "Alaska" "Washington"; do
-        printf "Processing "
+        printf "\033[1;32mProcessing \033[0m"
         grep $STATE $WORKDIR/nytimes.csv | tail -n 8 | sort -r | awk -F "\"*,\"*" '{print $4}' > $WORKDIR/$STATE.csv
         NEW=`head -n 1 $WORKDIR/$STATE.csv`
         OLD24H=`head -n 2 $WORKDIR/$STATE.csv | tail +2`
@@ -76,13 +100,8 @@ while true; do
         #rm $WORKDIR/$STATE.csv
     done
 
-    # Processing ECDC
-    if [[ $SKIP = "N" ]]; then
-        printf "\nFetching ECDC Dataset\n"
-        curl -s $ECDC > $WORKDIR/ecdc.csv
-    fi
     for COUNTRY in "Austria" "France" "Germany" "Italy" "Spain"; do
-        printf "Processing "
+        printf "\033[1;32mProcessing \033[0m"
         grep $COUNTRY $WORKDIR/ecdc.csv | head -n 7 | awk -F "\"*,\"*" '{print $5}' > $WORKDIR/$COUNTRY.csv
         NEW=`head -n 1 $WORKDIR/$COUNTRY.csv`
         TOTAL7D=0
@@ -94,20 +113,15 @@ while true; do
 
         if [[ $PREVIOUS = "Y" ]]; then
             if [[ $OUTPUT != `grep $COUNTRY $WORKDIR/out.csv.previous` ]]; then
-                echo "   UPDATED"
+                echo -e "\033[1;31m   UPDATED\033[0m"
             fi 
         fi
         echo $OUTPUT >> $WORKDIR/out.csv
         #rm $WORKDIR/$COUNTRY.csv
     done
 
-    # Processing WHO
-    if [[ $SKIP = "N" ]]; then
-        printf "\nFetching WHO Dataset\n"
-        curl -s $WHO > $WORKDIR/who.csv
-    fi
     for COUNTRY in "The United Kingdom" "United States of America"; do
-        printf "Processing "
+        printf "\033[1;32mProcessing \033[0m"
         OUTPUT=`grep "$COUNTRY" $WORKDIR/who.csv | sed "s/\,/\;/g"    \
             | awk -F "\"*;\"*" '{print $1 ";" $7 ";" $5/7}' \
             | sed "s/\([^\.]*\).*/\1/"`
@@ -115,7 +129,7 @@ while true; do
 
         if [[ $PREVIOUS = "Y" ]]; then
             if [[ $OUTPUT != `grep "$COUNTRY" $WORKDIR/out.csv.previous` ]]; then
-                echo "   UPDATED"
+                echo -e "\033[1;31m   UPDATED\033[0m"
             fi 
         fi
         echo $OUTPUT >> $WORKDIR/out.csv        
@@ -137,10 +151,10 @@ while true; do
     sleep $SLEEP
 done
 
-printf "\n* Output"
+printf "\n\033[1;31mOutput\033[0m"
 if [[ $UPDATED = "Y" ]]; then
     rm $WORKDIR/out.csv.previous 2> /dev/null
-    printf " *** UPDATED ***"
+    printf "\033[1;31m *** UPDATED ***\033[0m"
     cp $WORKDIR/out.csv $WORKDIR/out.csv.previous
 fi
 
